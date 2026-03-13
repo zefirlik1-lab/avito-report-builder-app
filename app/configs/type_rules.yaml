@@ -1,0 +1,114 @@
+# Правила классификации типа объявления по названию (title)
+# Проверка строго сверху вниз; при совпадении остальные правила не проверяются.
+# Порядок = по убыванию priority. case-insensitive, по подстроке.
+
+rules:
+  # 1. АКБ
+  - id: akb
+    pattern: "акб|аккумулятор|аккумуляторов"
+    match_type: regex
+    result_type: "АКБ"
+    priority: 12
+    enabled: true
+    case_sensitive: false
+
+  # 2. Кабель
+  - id: cable
+    pattern: "кабель|кабеля|провод|провода"
+    match_type: regex
+    result_type: "Кабель"
+    priority: 11
+    enabled: true
+    case_sensitive: false
+
+  # 3. Медь (отдельно от цветмета)
+  - id: copper
+    pattern: "медь|меди"
+    match_type: regex
+    result_type: "Медь"
+    priority: 10
+    enabled: true
+    case_sensitive: false
+
+  # 4. Алюминий
+  - id: aluminium
+    pattern: "алюминий|алюминия"
+    match_type: regex
+    result_type: "Алюминий"
+    priority: 9
+    enabled: true
+    case_sensitive: false
+
+  # 5. Нержавейка
+  - id: stainless
+    pattern: "нержавейка"
+    match_type: contains
+    result_type: "Нержавейка"
+    priority: 8
+    enabled: true
+    case_sensitive: false
+
+  # 6. Цветмет
+  - id: color_metal
+    # Любые формы по слову «цветм…» и «цветн…» в связке с металлом/ломом
+    pattern: "цветмет|цветн\\w*\\s+(лом|металл|металлом|металлы)"
+    match_type: regex
+    result_type: "Цветмет"
+    priority: 7
+    enabled: true
+    case_sensitive: false
+
+  # 7. Чермет
+  - id: black_scrap
+    # Любые формы «черн…» в связке с ломом/металлом, а также «чермет»
+    pattern: "чермет|черн\\w*\\s+лом|черн\\w*\\s+металл"
+    match_type: regex
+    result_type: "Чермет"
+    priority: 6
+    enabled: true
+    case_sensitive: false
+
+  # 8. Эл.лом
+  - id: el_lom
+    pattern: "платы|радиодетали|электронного лома|приборов"
+    match_type: regex
+    result_type: "Эл.лом"
+    priority: 5
+    enabled: true
+    case_sensitive: false
+
+  # 9. РЗМ
+  - id: rzm
+    pattern: "вольфрам|олово|сурьма|сурьмы|баббит|цинк|феросплавы|ниобий|ниобия|припой|цирконий|циркония|титан|редкоземельные металлы|вктк|быстрорежущей стали|рзм|редкозем\\w*|редких металлов|редкие металлы|редкий металл"
+    match_type: regex
+    result_type: "РЗМ"
+    priority: 4
+    enabled: true
+    case_sensitive: false
+
+  # 10. Общее (металлолом в целом; не применяется, если подошла категория выше)
+  - id: obshchee
+    pattern: "металлолом|прием металлолома|вывоз металлолома|скупка металлолома|самовывоз лома|металл|лом|прием металла|прием лома|вывоз металла|вывоз лома|сдать лом|прием и вывоз металла"
+    match_type: regex
+    result_type: "Общее"
+    priority: 3
+    enabled: true
+    case_sensitive: false
+
+  # 11. Другое
+  - id: other
+    pattern: "демонтаж|резка металла|спектральный анализ|снос зданий"
+    match_type: regex
+    result_type: "Другое"
+    priority: 2
+    enabled: true
+    case_sensitive: false
+
+  # Fallback
+  - id: default
+    pattern: ""
+    match_type: exact
+    result_type: "Не определено"
+    priority: 0
+    enabled: true
+    comment: "При отсутствии совпадений"

@@ -1,0 +1,35 @@
+# Маппинг: имя колонки во входном файле → каноническое имя (input_structure.md)
+# Заголовки нормализуются: неразрывные пробелы → обычные, схлопывание пробелов
+
+Номер объявления: ad_id
+Регион размещения: region
+Город: city
+Адрес: address
+Категория: category
+Подкатегория: subcategory
+Параметр: parameter
+Название объявления: title
+Цена: price
+Дата первой публикации: first_publish_date
+Дата снятия с публикации: unpublish_date
+Дней на Авито: days_on_avito
+Сотрудник: employee
+Показы: impressions
+Конверсия из показов в просмотры: impressions_to_views_conversion
+Просмотры: views
+Средняя цена просмотра: avg_view_cost
+Конверсия из просмотров в контакты: views_to_contacts_conversion
+Контакты: contacts
+Написали в чат: chat_contacts
+Посмотрели телефон: phone_views
+Посмотрели телефон и написали в чат: phone_and_chat_contacts
+Откликнулись на скидку в чате: discount_chat_responses
+Средняя цена контакта: avg_contact_cost
+Добавили в избранное: favorites
+Расходы на объявления: ad_spend
+Списано бонусов на объявления: bonus_spend
+Расходы на размещение и целевые действия: placement_and_target_spend
+Расходы на продвижение: promotion_spend
+Остальные расходы: other_spend
+Номер объявления_url: ad_id_url
+Название объявления_url: title_url

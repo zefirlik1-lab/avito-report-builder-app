@@ -1,0 +1,3 @@
+([('AvitoReportDesktop',
+   '/Users/vasilisafilippova/Desktop/my-first-app/dist/AvitoReportDesktop',
+   'EXECUTABLE')],)
