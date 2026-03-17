@@ -20,6 +20,7 @@ def build_chart_sheet(dataset: ReportDataset) -> pd.DataFrame:
     out["ID объявления"] = df["ad_id"] if "ad_id" in df.columns else ""
     out["Название_url"] = df["title_url"].astype(str).replace("nan", "").replace("None", "") if "title_url" in df.columns else ""
     out["ID объявления_url"] = df["ad_id_url"].astype(str).replace("nan", "").replace("None", "") if "ad_id_url" in df.columns else ""
-    # Для второго блока (расходы по типам) — не выводится в основную таблицу
+    # Для второго блока (расходы по типам) и третьего (контакты по типам) — не выводятся в основную таблицу
     out["ad_spend"] = df["ad_spend"] if "ad_spend" in df.columns else 0
+    out["contacts"] = df["contacts"] if "contacts" in df.columns else 0
     return out

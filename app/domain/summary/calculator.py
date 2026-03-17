@@ -98,8 +98,10 @@ def build_summary_rows(metrics: dict[str, Any], period_label: str = "") -> list[
     """
     # conversion в метриках уже в процентах (contacts*100/views); для формата % в Excel — доля 0..1
     conversion_pct = metrics.get("conversion", 0) / 100.0
-    # Средняя цена контакта и Расходы на объявления — целые числа (рубли без копеек)
-    avg_cost = round(float(metrics.get("avg_contact_cost", 0)))
+    # Средняя цена контакта: агрегированная стоимость = общие расходы / общие контакты
+    # (метрика avg_cost_per_contact), а не среднее по столбцу avg_contact_cost.
+    # Расходы на объявления — целые числа (рубли без копеек).
+    avg_cost = round(float(metrics.get("avg_cost_per_contact", 0)))
     ad_spend = round(float(metrics.get("ad_spend", 0)))
     row = {
         "Неделя": "",

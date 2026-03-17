@@ -247,6 +247,19 @@ def _format_diagram_sheet(
         n2 = _count_table_data_rows(ws, table2_header_row, 1)
         _format_chart_table(ws, table2_header_row, table2_header_row + n2, table_header_fill, table_header_font, default_font)
 
+    # Таблица 3: Тип | Контакты
+    search_from = (table2_header_row + n2 + 1) if table2_header_row is not None else (table1_header_row + n1 + 1)
+    table3_header_row = None
+    for r in range(search_from, max_row + 1):
+        a_val = ws.cell(row=r, column=1).value
+        b_val = ws.cell(row=r, column=2).value
+        if _cell_str(a_val) == "Тип" and _cell_str(b_val) == "Контакты":
+            table3_header_row = r
+            break
+    if table3_header_row is not None:
+        n3 = _count_table_data_rows(ws, table3_header_row, 1)
+        _format_chart_table(ws, table3_header_row, table3_header_row + n3, table_header_fill, table_header_font, default_font)
+
 
 def _cell_str(v: Any) -> str:
     if v is None:

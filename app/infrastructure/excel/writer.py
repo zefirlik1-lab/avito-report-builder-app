@@ -29,16 +29,34 @@ except ImportError:
 
 from app.application.exceptions import ReportBuilderError
 
-# Порядок типов для сводной таблицы и круговой диаграммы на листе "Диаграмма"
-_CHART_SHEET_TYPE_ORDER = [
+# Базовый порядок типов для сводных таблиц и диаграмм. Остальные типы из данных добавляются в конец (отсортированные).
+_CHART_BASE_TYPE_ORDER = [
     "АКБ", "Общее", "Чермет", "Цветмет", "Кабель", "Эл.лом", "РЗМ",
-    "Нержавейка", "Медь", "Алюминий", "Другое",
+    "Нержавейка", "Медь", "Алюминий",
 ]
+
+
+def _build_chart_type_order(df: pd.DataFrame) -> list[str]:
+    """
+    Итоговый список типов для таблиц и диаграмм: базовые в фиксированном порядке,
+    затем все остальные уникальные типы из df["Тип"], отсортированные по имени.
+    """
+    base = list(_CHART_BASE_TYPE_ORDER)
+    if "Тип" not in df.columns or df.empty:
+        return base
+    unique = df["Тип"].dropna().astype(str).unique().tolist()
+    dynamic = sorted(t for t in unique if t and t not in base)
+    return base + dynamic
 # Цвета сегментов первой круговой (Excel accent1..accent6, затем по кругу)
 _PIE_COLOR_SCHEME = ["accent1", "accent2", "accent3", "accent4", "accent5", "accent6"]
 # Высота первой диаграммы в строках; затем +5 пустых строк до заголовка таблицы расходов
 _FIRST_CHART_ROW_SPAN = 15
 _GAP_ROWS_BEFORE_EXPENSES = 5
+# Нижняя граница второго блока: столбчатая диаграмма расходов занимает по высоте больше строк, чем таблица.
+# Высота диаграммы в «строках» для расчёта старта третьего блока (Контакты).
+_EXPENSES_CHART_ROW_SPAN = 24
+# Отступ перед третьим блоком (Контакты по типам)
+_GAP_ROWS_BEFORE_CONTACTS = 5
 
 
 def _excel_escape(s: str) -> str:
@@ -62,7 +80,7 @@ def _add_pie_chart(
     """
     chart_anchor = f"D{start_row}"
     if n_rows is None:
-        n_rows = len(_CHART_SHEET_TYPE_ORDER)
+        n_rows = len(_CHART_BASE_TYPE_ORDER)
     if n_rows <= 0:
         return
     labels_ref = Reference(ws, min_col=1, min_row=start_row + 1, max_row=start_row + n_rows)
@@ -84,11 +102,63 @@ def _add_pie_chart(
     ws.add_chart(pie, chart_anchor)
 
 
-def _add_bar_chart_expenses(ws: Any, start_row: int, sorted_type_names: list[str]) -> None:
+def _add_pie_chart_contacts(
+    ws: Any,
+    start_row: int,
+    title: str,
+    col_labels: int,
+    col_values: int,
+    n_rows: int,
+    type_names_in_order: list[str],
+    all_types_order: list[str],
+) -> None:
+    """
+    Круговая диаграмма «Количество контактов»: только значение в подписи (без %),
+    цвета сегментов как в остальных диаграммах по типам.
+    Категории и значения берутся из одного вспомогательного диапазона (col_labels, col_values).
+    """
+    if n_rows <= 0:
+        return
+    chart_anchor = f"D{start_row}"
+    labels_ref = Reference(ws, min_col=col_labels, min_row=start_row + 1, max_row=start_row + n_rows)
+    data_ref = Reference(ws, min_col=col_values, min_row=start_row, max_row=start_row + n_rows)
+    pie = PieChart()
+    pie.title = title
+    pie.width = 22
+    pie.height = 14
+    pie.add_data(data_ref, titles_from_data=True)
+    pie.set_categories(labels_ref)
+    if DataLabelList is not None:
+        pie.dataLabels = DataLabelList()
+        pie.dataLabels.showVal = True
+        pie.dataLabels.showPercent = False
+        pie.dataLabels.showCatName = False
+        pie.dataLabels.showSerName = False
+        pie.dataLabels.showLegendKey = False
+        pie.dataLabels.position = "bestFit"
+    if GraphicalProperties is not None and DataPoint is not None and SchemeColor is not None and ColorChoice is not None:
+        data_points = []
+        for i, type_name in enumerate(type_names_in_order):
+            color_idx = (all_types_order.index(type_name) if type_name in all_types_order else i) % len(_PIE_COLOR_SCHEME)
+            scheme_val = _PIE_COLOR_SCHEME[color_idx]
+            fill = ColorChoice(schemeClr=SchemeColor(val=scheme_val))
+            sp_pr = GraphicalProperties(solidFill=fill)
+            data_points.append(DataPoint(idx=i, spPr=sp_pr))
+        if data_points:
+            pie.series[0].dPt = data_points
+    ws.add_chart(pie, chart_anchor)
+
+
+def _add_bar_chart_expenses(
+    ws: Any,
+    start_row: int,
+    sorted_type_names: list[str],
+    all_types_order: list[str] | None = None,
+) -> None:
     """
     Горизонтальная столбчатая: 1 серия «Расходы», категории = типы (ось Y).
     Без заголовка диаграммы. Подписи — только число, справа от столбца (outEnd).
-    Цвет столбца = цвет типа в первой круговой. Легенда справа.
+    Цвет столбца = позиция типа в all_types_order (или в базовом списке). Легенда справа.
     """
     chart_anchor = f"D{start_row}"
     n = len(sorted_type_names)
@@ -108,10 +178,11 @@ def _add_bar_chart_expenses(ws: Any, start_row: int, sorted_type_names: list[str
         bar.dataLabels.showSerName = False
         bar.dataLabels.showLegendKey = False
         bar.dataLabels.position = "outEnd"
+    type_order = all_types_order or _CHART_BASE_TYPE_ORDER
     if GraphicalProperties is not None and DataPoint is not None and SchemeColor is not None and ColorChoice is not None:
         data_points = []
         for i, type_name in enumerate(sorted_type_names):
-            color_idx = _CHART_SHEET_TYPE_ORDER.index(type_name) % len(_PIE_COLOR_SCHEME)
+            color_idx = (type_order.index(type_name) if type_name in type_order else i) % len(_PIE_COLOR_SCHEME)
             scheme_val = _PIE_COLOR_SCHEME[color_idx]
             fill = ColorChoice(schemeClr=SchemeColor(val=scheme_val))
             sp_pr = GraphicalProperties(solidFill=fill)
@@ -125,8 +196,10 @@ def _add_chart_sheet_analytics(ws: Any, df: pd.DataFrame) -> None:
     Под основной таблицей листа «Диаграмма» добавляет:
     1) первый блок: сводная «Тип | Количество», круговая «Количество объявлений»;
     2) второй блок ниже: сводная «Тип | Расходы по объявлениям», горизонтальная столбчатая «Расходы по объявлениям».
+    Список типов формируется динамически: базовый порядок + остальные типы из данных (отсортированные).
     """
-    n_types = len(_CHART_SHEET_TYPE_ORDER)
+    final_types = _build_chart_type_order(df)
+    n_types = len(final_types)
     # Фактическое количество строк основной таблицы на листе «Диаграмма»:
     # заголовок в 1-й строке, данные начинаются со 2-й и идут подряд.
     data_rows = len(df)
@@ -138,7 +211,7 @@ def _add_chart_sheet_analytics(ws: Any, df: pd.DataFrame) -> None:
     ws.cell(row=start_row, column=1, value="Тип")
     ws.cell(row=start_row, column=2, value="Количество по полю Тип")
     counts = df["Тип"].value_counts() if "Тип" in df.columns else pd.Series(dtype=int)
-    for i, type_name in enumerate(_CHART_SHEET_TYPE_ORDER, start=1):
+    for i, type_name in enumerate(final_types, start=1):
         row = start_row + i
         ws.cell(row=row, column=1, value=type_name)
         ws.cell(row=row, column=2, value=int(counts.get(type_name, 0)))
@@ -146,7 +219,7 @@ def _add_chart_sheet_analytics(ws: Any, df: pd.DataFrame) -> None:
     # Для диаграммы используем только типы, у которых количество > 0,
     # при этом сама таблица с нулями остаётся без изменений.
     non_zero_types: list[tuple[str, int]] = []
-    for type_name in _CHART_SHEET_TYPE_ORDER:
+    for type_name in final_types:
         cnt = int(counts.get(type_name, 0))
         if cnt > 0:
             non_zero_types.append((type_name, cnt))
@@ -183,7 +256,7 @@ def _add_chart_sheet_analytics(ws: Any, df: pd.DataFrame) -> None:
         spend_by_type = pd.Series(dtype=float)
     # По убыванию расходов: самый большой сверху, самый маленький снизу (таблица, диаграмма и легенда в одном порядке)
     sorted_pairs = sorted(
-        [(t, float(spend_by_type.get(t, 0))) for t in _CHART_SHEET_TYPE_ORDER],
+        [(t, float(spend_by_type.get(t, 0))) for t in final_types],
         key=lambda x: x[1],
         reverse=True,
     )
@@ -193,7 +266,48 @@ def _add_chart_sheet_analytics(ws: Any, df: pd.DataFrame) -> None:
         ws.cell(row=row, column=1, value=type_name)
         ws.cell(row=row, column=2, value=val)
     if BarChart is not None:
-        _add_bar_chart_expenses(ws, second_start, sorted_type_names)
+        _add_bar_chart_expenses(ws, second_start, sorted_type_names, all_types_order=final_types)
+
+    # --- Третий блок: контакты по типам. Старт от нижней границы второго блока (таблица или диаграмма), не от конца таблицы. ---
+    expenses_table_bottom_row = second_start + n_types
+    expenses_chart_bottom_row = second_start + _EXPENSES_CHART_ROW_SPAN
+    second_block_bottom_row = max(expenses_table_bottom_row, expenses_chart_bottom_row)
+    third_start = second_block_bottom_row + 1 + _GAP_ROWS_BEFORE_CONTACTS
+    ws.cell(row=third_start, column=1, value="Тип")
+    ws.cell(row=third_start, column=2, value="Контакты")
+    if "contacts" in df.columns:
+        contacts_by_type = df.groupby("Тип", as_index=False)["contacts"].sum()
+        contacts_series = contacts_by_type.set_index("Тип")["contacts"]
+    else:
+        contacts_series = pd.Series(dtype=float)
+    for i, type_name in enumerate(final_types, start=1):
+        row = third_start + i
+        ws.cell(row=row, column=1, value=type_name)
+        ws.cell(row=row, column=2, value=int(contacts_series.get(type_name, 0)))
+    non_zero_contacts: list[tuple[str, int]] = []
+    for type_name in final_types:
+        cnt = int(contacts_series.get(type_name, 0))
+        if cnt > 0:
+            non_zero_contacts.append((type_name, cnt))
+    if non_zero_contacts:
+        helper_col_label = 6
+        helper_col_value = 7
+        ws.cell(row=third_start, column=helper_col_label, value="Тип")
+        ws.cell(row=third_start, column=helper_col_value, value="Контакты")
+        for i, (type_name, cnt) in enumerate(non_zero_contacts, start=1):
+            row = third_start + i
+            ws.cell(row=row, column=helper_col_label, value=type_name)
+            ws.cell(row=row, column=helper_col_value, value=cnt)
+        _add_pie_chart_contacts(
+            ws,
+            third_start,
+            "Количество контактов",
+            helper_col_label,
+            helper_col_value,
+            len(non_zero_contacts),
+            [t for t, _ in non_zero_contacts],
+            final_types,
+        )
 
 
 def build_workbook_bytes(
