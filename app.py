@@ -15,6 +15,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# Конфиги всегда из репозитория (где лежит app.py), чтобы после git pull применялась актуальная логика
+CONFIGS_DIR = PROJECT_ROOT / "app" / "configs"
+
 
 def _extract_period_label_from_filename(filename: str) -> str | None:
     """
@@ -81,6 +84,7 @@ def main() -> None:
                     filename=filename,
                     cabinet_name=cabinet_name or None,
                     period_label=period_label,
+                    configs_dir=CONFIGS_DIR,
                 )
             except ReportBuilderError as e:
                 msg = f"Ошибка построения отчёта: [{e.code}] {e}"

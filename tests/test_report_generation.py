@@ -29,7 +29,7 @@ def _minimal_xlsx_bytes() -> bytes:
 def test_generate_report_returns_workbook():
     content = _minimal_xlsx_bytes()
     result = generate_report(content, "test.xlsx", cabinet_name="Кабинет 1")
-    assert result.file_name == "test_report.xlsx"
+    assert result.file_name == "output_report.xlsx"
     assert result.sheets == ["Админ панель", "Диаграмма", "Недельный", "Сводная"]
     assert len(result.content_bytes) > 0
 
